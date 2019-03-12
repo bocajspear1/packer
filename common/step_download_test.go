@@ -212,6 +212,7 @@ func TestStepDownload_Run(t *testing.T) {
 				ResultKey:    tt.fields.ResultKey,
 				Url:          tt.fields.Url,
 				Extension:    tt.fields.Extension,
+				Description:  tt.name,
 			}
 			defer os.Setenv("PACKER_CACHE_DIR", os.Getenv("PACKER_CACHE_DIR"))
 			os.Setenv("PACKER_CACHE_DIR", dir)
