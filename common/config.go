@@ -1,12 +1,6 @@
 package common
 
 import (
-	"fmt"
-	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 )
 
@@ -18,84 +12,3 @@ const PackerKeyEnv = "PACKER_KEY_INTERVAL"
 // PackerKeyDefault 100ms is appropriate for shared build infrastructure while a
 // shorter delay (e.g. 10ms) can be used on a workstation. See PackerKeyEnv.
 const PackerKeyDefault = 100 * time.Millisecond
-
-// ChooseString returns the first non-empty value.
-func ChooseString(vals ...string) string {
-	for _, el := range vals {
-		if el != "" {
-			return el
-		}
-	}
-
-	return ""
-}
-
-// DownloadableURL processes a URL that may also be a file path and returns
-// a completely valid URL representing the requested file. For example,
-// the original URL might be "local/file.iso" which isn't a valid URL,
-// and so DownloadableURL will return "file://local/file.iso"
-// No other transformations are done to the path.
-func DownloadableURL(original string) (string, error) {
-	var absPrefix, result string
-
-	absPrefix = ""
-	if runtime.GOOS == "windows" {
-		absPrefix = "/"
-	}
-
-	// Check that the user specified a UNC path, and promote it to an smb:// uri.
-	if strings.HasPrefix(original, "\\\\") && len(original) > 2 && original[2] != '?' {
-		result = filepath.ToSlash(original[2:])
-		return fmt.Sprintf("smb://%s", result), nil
-	}
-
-	// Fix the url if it's using bad characters commonly mistaken with a path.
-	original = filepath.ToSlash(original)
-
-	// Check to see that this is a parseable URL with a scheme and a host.
-	// If so, then just pass it through.
-	if u, err := url.Parse(original); err == nil && u.Scheme != "" && u.Host != "" {
-		return original, nil
-	}
-
-	// If it's a file scheme, then convert it back to a regular path so the next
-	// case which forces it to an absolute path, will correct it.
-	if u, err := url.Parse(original); err == nil && strings.ToLower(u.Scheme) == "file" {
-		original = u.Path
-	}
-
-	// If we're on Windows and we start with a slash, then this absolute path
-	// is wrong. Fix it up, so the next case can figure out the absolute path.
-	if rpath := strings.SplitN(original, "/", 2); rpath[0] == "" && runtime.GOOS == "windows" {
-		result = rpath[1]
-	} else {
-		result = original
-	}
-
-	// Since we should be some kind of path (relative or absolute), check
-	// that the file exists, then make it an absolute path so we can return an
-	// absolute uri.
-	if _, err := os.Stat(result); err == nil {
-		result, err = filepath.Abs(filepath.FromSlash(result))
-		if err != nil {
-			return "", err
-		}
-
-		result, err = filepath.EvalSymlinks(result)
-		if err != nil {
-			return "", err
-		}
-
-		result = filepath.Clean(result)
-		return fmt.Sprintf("file://%s%s", absPrefix, filepath.ToSlash(result)), nil
-	}
-
-	// Otherwise, check if it was originally an absolute path, and fix it if so.
-	if strings.HasPrefix(original, "/") {
-		return fmt.Sprintf("file://%s%s", absPrefix, result), nil
-	}
-
-	// Anything left should be a non-existent relative path. So fix it up here.
-	result = filepath.ToSlash(filepath.Clean(result))
-	return fmt.Sprintf("file://./%s", result), nil
-}
