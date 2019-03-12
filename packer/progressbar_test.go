@@ -10,7 +10,17 @@ import (
 
 // The following tests rarelly just happen. So we run them 100 times.
 
-func TestProgressTracking_no_read(t *testing.T) {
+func TestProgressTracking_open_close(t *testing.T) {
+	var bar *uiProgressBar
+
+	tracker := bar.TrackProgress("1,", 1, 42, ioutil.NopCloser(nil))
+	tracker.Close()
+
+	tracker = bar.TrackProgress("2,", 1, 42, ioutil.NopCloser(nil))
+	tracker.Close()
+}
+
+func TestProgressTracking_multi_open_close(t *testing.T) {
 	var bar *uiProgressBar
 	g := errgroup.Group{}
 
