@@ -13,11 +13,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/packer/packer/tmp"
-
 	"github.com/google/go-cmp/cmp"
-
+	urlhelper "github.com/hashicorp/go-getter/helper/url"
 	"github.com/hashicorp/packer/helper/multistep"
+	"github.com/hashicorp/packer/packer/tmp"
 )
 
 var _ multistep.Step = new(StepDownload)
@@ -32,7 +31,11 @@ func abs(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return path
+	u, err := urlhelper.Parse(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u.String()
 }
 
 func TestStepDownload_Run(t *testing.T) {
