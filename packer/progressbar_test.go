@@ -4,18 +4,27 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
-	"time"
 
-	pb "github.com/cheggaaa/pb"
 	"golang.org/x/sync/errgroup"
 )
 
-func speedyProgressBar(bar *pb.ProgressBar) {
-	bar.SetUnits(pb.U_BYTES)
-	bar.SetRefreshRate(1 * time.Millisecond)
-	bar.NotPrint = true
-	bar.Format("[\x00=\x00>\x00-\x00]")
+// The following tests rarelly just happen. So we run them 100 times.
+
+func TestProgressTracking_no_read(t *testing.T) {
+	var bar *uiProgressBar
+	g := errgroup.Group{}
+
+	for i := 0; i < 100; i++ {
+		g.Go(func() error {
+			tracker := bar.TrackProgress("file,", 1, 42, ioutil.NopCloser(nil))
+			return tracker.Close()
+		})
+	}
+	if err := g.Wait(); err != nil {
+		t.Fatal(err)
+	}
 }
+
 func TestProgressTracking_races(t *testing.T) {
 	var bar *uiProgressBar
 	g := errgroup.Group{}
@@ -29,9 +38,11 @@ func TestProgressTracking_races(t *testing.T) {
 			for i := 0; i < 42; i++ {
 				tracker.Read([]byte("i"))
 			}
-			return nil
+			return tracker.Close()
 		})
 	}
 
-	g.Wait()
+	if err := g.Wait(); err != nil {
+		t.Fatal(err)
+	}
 }
